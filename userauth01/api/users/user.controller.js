@@ -1,18 +1,17 @@
 const {
   create,
-  getUserByUserID,
+  getUserByUserEmail,
+  getUserByUserId,
   getUsers,
   updateUser,
-  deleteUser,
-  getUserByEmail,
+  deleteUser
 } = require("./user.service");
-const { genSaltSync, hashSync, compareSync } = require("bcrypt");
-const { sign, JsonWebTokenError } = require("jsonwebtoken");
+const { hashSync, genSaltSync, compareSync } = require("bcrypt");
+const { sign } = require("jsonwebtoken");
 
 module.exports = {
   createUser: (req, res) => {
     const body = req.body;
-    console.log(body);
     const salt = genSaltSync(10);
     body.password = hashSync(body.password, salt);
     create(body, (err, results) => {
@@ -20,18 +19,49 @@ module.exports = {
         console.log(err);
         return res.status(500).json({
           success: 0,
-          message: "Database connection error",
+          message: "Database connection errror"
         });
       }
       return res.status(200).json({
         success: 1,
-        data: results,
+        data: results
       });
     });
   },
-  getUserByUserID: (req, res) => {
+  login: (req, res) => {
+    const body = req.body;
+    getUserByUserEmail(body.email, (err, results) => {
+      if (err) {
+        console.log(err);
+      }
+      if (!results) {
+        return res.json({
+          success: 0,
+          data: "Invalid email or password"
+        });
+      }
+      const result = compareSync(body.password, results.password);
+      if (result) {
+        results.password = undefined;
+        const jsontoken = sign({ result: results }, "qwe1234", {
+          expiresIn: "1h"
+        });
+        return res.json({
+          success: 1,
+          message: "login successfully",
+          token: jsontoken
+        });
+      } else {
+        return res.json({
+          success: 0,
+          data: "Invalid email or password"
+        });
+      }
+    });
+  },
+  getUserByUserId: (req, res) => {
     const id = req.params.id;
-    getUserByUserID(id, (err, results) => {
+    getUserByUserId(id, (err, results) => {
       if (err) {
         console.log(err);
         return;
@@ -39,12 +69,13 @@ module.exports = {
       if (!results) {
         return res.json({
           success: 0,
-          message: "record not found",
+          message: "Record not Found"
         });
       }
+      results.password = undefined;
       return res.json({
         success: 1,
-        data: results,
+        data: results
       });
     });
   },
@@ -56,7 +87,7 @@ module.exports = {
       }
       return res.json({
         success: 1,
-        data: results,
+        data: results
       });
     });
   },
@@ -69,15 +100,9 @@ module.exports = {
         console.log(err);
         return;
       }
-      if (!results) {
-        return res.json({
-          success: 0,
-          message: "failed to update user",
-        });
-      }
       return res.json({
         success: 1,
-        message: "updated successfully",
+        message: "updated successfully"
       });
     });
   },
@@ -91,47 +116,13 @@ module.exports = {
       if (!results) {
         return res.json({
           success: 0,
-          message: "record not found",
+          message: "Record Not Found"
         });
       }
       return res.json({
         success: 1,
-        message: "user deleted successfully",
+        message: "user deleted successfully"
       });
     });
-  },
-  login: (req, res) => {
-    const body = req.body;
-    getUserByEmail(body.email, (err, results) => {
-      if (err) {
-        console.log(err);
-      }
-      if (!results) {
-        return res.json({
-          success: 0,
-          data: "Invalid email or password",
-        });
-      }
-      console.log(results);
-      const result = compareSync(body.password, results.password);
-      if (result) {
-        results.password = undefined;
-        console.log(result);
-        const jsontoken = sign({ result: results }, "qwe1234", {
-          expiresIn: "1h",
-        });
-        return res.json({
-          success: 1,
-          message: "login successfully",
-          token: jsontoken,
-        });
-        //"qwe1234" is the key, here it's hardcoded in but make sure not to hardcode the key in the future
-      } else {
-        return res.json({
-          success: 0,
-          data: "Invalid email or password",
-        });
-      }
-    });
-  },
+  }
 };
